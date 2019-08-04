@@ -2,19 +2,17 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-# from torch.optim import lr_scheduler
+from torch.optim import lr_scheduler
 import torch.backends.cudnn as cudnn
 
 import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torch.utils.data import DataLoader
-
 import numpy as np
 import random
 
 from models.densenet import DenseNet
-
 
 import argparse
 from tensorboardX import SummaryWriter
@@ -22,14 +20,14 @@ from tensorboardX import SummaryWriter
 parser = argparse.ArgumentParser(description='cifar10 classification models')
 parser.add_argument('--lr', default=0.1, type=float, help='')
 parser.add_argument('--resume', default=None, type=float, help='')
-parser.add_argument('--growth_rate', default=32, type=int, help='')
+parser.add_argument('--growth_rate', default=40, type=int, help='')
 parser.add_argument('--theta', default=0.5, type=float, help='')
 parser.add_argument('--dropout', default=0.0, type=float, help='')
-parser.add_argument('--batch_size', default=128, type=int, help='')
+parser.add_argument('--batch_size', default=64, type=int, help='')
 parser.add_argument('--batch_size_test', default=100, type=int, help='')
 parser.add_argument('--momentum', default=0.9, type=float, help='')
-parser.add_argument('--weight_decay', default=5e-4, type=float, help='')
-parser.add_argument('--epoch', default=200, type=int, help='')
+parser.add_argument('--weight_decay', default=1e-4, type=float, help='')
+parser.add_argument('--epoch', default=300, type=int, help='')
 parser.add_argument('--num_worker', default=4, type=int, help='')
 parser.add_argument('--logdir', type=str, default='logs', help='')
 args = parser.parse_args()
@@ -63,8 +61,7 @@ classes = ('plane', 'car', 'bird', 'cat', 'deer',
 
 print('==> Making model..')
 
-net = DenseNet(growth_rate=args.growth_rate, theta=args.theta, num_layers=[12, 12, 12], 
-               droprate=args.dropout, num_classes=10)
+net = DenseNet(growth_rate=args.growth_rate, theta=args.theta, num_layers=[12, 12, 12], num_classes=10)
 net = net.to(device)
 if device == 'cuda':
     net = torch.nn.DataParallel(net)
@@ -74,6 +71,7 @@ num_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
 print('The number of parameters of model is', num_params)
 
 if args.resume is not None:
+    sn.noti('New ACC Record: ' + args.resume)
     checkpoint = torch.load('./save_model/' + args.resume)
     net.load_state_dict(checkpoint['net'])
 
@@ -81,10 +79,8 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=args.lr, 
                       momentum=args.momentum, weight_decay=args.weight_decay)
 
-# decay_epoch = [60, 120, 160]
-# scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=decay_epoch, gamma=0.2)
-
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epoch, eta_min=0, last_epoch=-1)
+decay_epoch = [150, 225]
+scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=decay_epoch, gamma=0.1)
 
 writer = SummaryWriter(args.logdir)
 
@@ -156,7 +152,6 @@ def test(epoch, best_acc, global_steps):
             os.mkdir('save_model')
         torch.save(state, './save_model/ckpt.pth')
         best_acc = acc
-
     return best_acc
 
 
