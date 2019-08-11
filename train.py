@@ -71,7 +71,6 @@ num_params = sum(p.numel() for p in net.parameters() if p.requires_grad)
 print('The number of parameters of model is', num_params)
 
 if args.resume is not None:
-    sn.noti('New ACC Record: ' + args.resume)
     checkpoint = torch.load('./save_model/' + args.resume)
     net.load_state_dict(checkpoint['net'])
 
